@@ -78,7 +78,12 @@ textarea:focus{outline:2px solid var(--acc);outline-offset:1px}
 </section>
 <section id="v-set" hidden>
  <p><b>Where should the rewrites come from?</b></p>
- <select id="prov" class="btn"><option value="gemini">Firebase AI Logic (Gemini, free tier)</option><option value="claude">My own Claude API key</option></select>
+ <select id="prov" class="btn"><option value="aistudio">Google AI Studio key (free, easiest)</option><option value="gemini">Firebase AI Logic (Gemini, free tier)</option><option value="claude">My own Claude API key</option></select>
+ <div id="sbox">
+  <p class="note"><b>How to get a free key:</b> go to aistudio.google.com, sign in, click “Get API key”, then “Create API key”. Paste it below. It’s saved only in this browser. Never put it in the file or on GitHub, and don’t share it.</p>
+  <input id="gkey" type="password" placeholder="AIza…" autocomplete="off" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:15px system-ui,sans-serif">
+  <div class="row"><button class="btn pri" id="saveG">Save key</button><button class="btn" id="clrG">Remove key</button><span class="hint" id="gst"></span></div>
+ </div>
  <div id="gbox" class="note">Uses the Gemini setup inside this file. Paste your <code>firebaseConfig</code> into the module script at the bottom of the file, then redeploy.</div>
  <div id="kbox" hidden>
   <p class="note">Your key is saved only in this browser and sent only to Anthropic. Only use this on your own device, never on a shared computer, and never share the key.</p>
@@ -135,9 +140,12 @@ $('addS').onclick=function(){var v=$('samples').value.trim();if(!v)return;v.spli
 $('resetV').onclick=function(){voice.length=0;store.set('ut_voice',voice);renderStats()};
 
 /* ---------- providers ---------- */
-var prov=store.get('ut_prov','gemini'),akey=store.get('ut_key','');
-function showK(){$('kbox').hidden=prov!=='claude';$('gbox').hidden=prov!=='gemini'}
+var prov=store.get('ut_prov','aistudio'),akey=store.get('ut_key',''),gk=store.get('ut_gkey','');
+function showK(){$('kbox').hidden=prov!=='claude';$('gbox').hidden=prov!=='gemini';$('sbox').hidden=prov!=='aistudio'}
 $('prov').value=prov;showK();$('akey').value=akey;
+$('gkey').value=gk;
+$('saveG').onclick=function(){gk=$('gkey').value.trim();store.set('ut_gkey',gk);$('gst').textContent=gk?'Saved ✓':'Empty'};
+$('clrG').onclick=function(){gk='';$('gkey').value='';store.set('ut_gkey','');$('gst').textContent='Removed'};
 $('prov').onchange=function(){prov=this.value;store.set('ut_prov',prov);showK()};
 $('saveK').onclick=function(){akey=$('akey').value.trim();store.set('ut_key',akey);$('kst').textContent=akey?'Saved ✓':'Empty'};
 $('clrK').onclick=function(){akey='';$('akey').value='';store.set('ut_key','');$('kst').textContent='Removed'};
@@ -148,6 +156,12 @@ async function ask(prompt){
   var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':akey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-5-5',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
   if(!res.ok)throw new Error(res.status===401?'That API key was rejected. Check it in Settings.':'Claude API error ('+res.status+').');
   var d=await res.json();return parseJ(d.content.map(function(b){return b.text||''}).join(''));
+ }
+ if(prov==='aistudio'){
+  if(!gk)throw new Error('Open Settings and paste your free Google AI Studio key first.');
+  var g=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':gk},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{responseMimeType:'application/json',maxOutputTokens:2000,thinkingConfig:{thinkingBudget:0}}})});
+  if(!g.ok)throw new Error(g.status===429?'Free limit reached for now. Wait a minute and try again.':(g.status===400||g.status===403)?'Google rejected the key. Check it in Settings.':'Gemini error ('+g.status+').');
+  var gd=await g.json();return parseJ(gd.candidates[0].content.parts.map(function(p){return p.text||''}).join(''));
  }
  if(!window.askGemini)throw new Error('Firebase isn’t set up yet. Paste your firebaseConfig into the module script at the bottom of the file.');
  return parseJ(await window.askGemini(prompt));
@@ -224,16 +238,7 @@ updBadge();
 </script>
 <script type="module">
 // ===== Option B: Firebase AI Logic (Gemini). Paste your config from Firebase console > Project settings > Your apps =====
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyBxU7-EWEwEhWoLM8rWPnMhvTh-EtrAp7M",
-  authDomain: "the-unsaid-translator.firebaseapp.com",
-  projectId: "the-unsaid-translator",
-  storageBucket: "the-unsaid-translator.firebasestorage.app",
-  messagingSenderId: "387460490206",
-  appId: "1:387460490206:web:ec26fd8cd111dce814334f",
-  measurementId: "G-7QBTCL4V7C"
-};
+const FIREBASE_CONFIG = { apiKey: "PASTE_ME", authDomain: "", projectId: "", appId: "" };
 if (FIREBASE_CONFIG.apiKey !== "PASTE_ME") {
   try {
     const { initializeApp } = await import("https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js");
