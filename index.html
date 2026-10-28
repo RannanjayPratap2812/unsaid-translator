@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Unsaid Translator</title>
+<style>
+:root{--bg:#faf7f2;--card:#fff;--ink:#2a2622;--mute:#7a7268;--line:#e6dfd3;--acc:#c2522b;--accbg:#fbeee8;--soft:#5b8a72;--firm:#b5452a;--clear:#3f6c9a;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1a1816;--card:#25221f;--ink:#f0ebe3;--mute:#a39b8f;--line:#3a352f;--acc:#e8825c;--accbg:#33241d;--soft:#7fb59a;--firm:#e8825c;--clear:#7aa7d4;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1a1816;--card:#25221f;--ink:#f0ebe3;--mute:#a39b8f;--line:#3a352f;--acc:#e8825c;--accbg:#33241d;--soft:#7fb59a;--firm:#e8825c;--clear:#7aa7d4;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Georgia,'Times New Roman',serif}
+main{max-width:760px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:28px;margin:8px 0 2px;letter-spacing:-.01em}
+.sub{color:var(--mute);margin:0 0 18px;font-style:italic}
+nav{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+nav button{font:14px system-ui,sans-serif;padding:8px 14px;border:1px solid var(--line);background:transparent;color:var(--mute);border-radius:99px;cursor:pointer}
+nav button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.badge{background:var(--acc);color:#fff;border-radius:99px;padding:0 7px;font-size:12px;margin-left:4px}
+textarea{width:100%;min-height:110px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:17px/1.5 Georgia,serif;resize:vertical}
+textarea:focus{outline:2px solid var(--acc);outline-offset:1px}
+.row{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap;align-items:center}
+.btn{font:15px system-ui,sans-serif;padding:10px 18px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+.btn:disabled{opacity:.5;cursor:default}
+.hint{font:13px system-ui,sans-serif;color:var(--mute)}
+.ask{background:var(--accbg);border-left:4px solid var(--acc);padding:12px 14px;border-radius:8px;margin:16px 0}
+.ask b{font:600 12px system-ui,sans-serif;text-transform:uppercase;letter-spacing:.06em;color:var(--acc);display:block;margin-bottom:4px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:680px){.grid{grid-template-columns:1fr}}
+.opt{background:var(--card);border:1px solid var(--line);border-top-width:4px;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.opt h3{margin:0;font:600 12px system-ui,sans-serif;text-transform:uppercase;letter-spacing:.08em}
+.opt p{margin:0;white-space:pre-wrap;flex:1}
+.opt .acts{display:flex;gap:6px;flex-wrap:wrap}
+.opt .acts button{font:13px system-ui,sans-serif;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.note{font:13px system-ui,sans-serif;color:var(--mute);margin-top:12px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.item.ready{border-color:var(--acc)}
+.item .when{font:13px system-ui,sans-serif;color:var(--mute);margin-bottom:6px}
+.item .q{font:600 15px system-ui,sans-serif;color:var(--acc);margin-bottom:6px}
+.item p{white-space:pre-wrap;margin:0 0 10px}
+.stats{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.chip{font:13px system-ui,sans-serif;background:var(--card);border:1px solid var(--line);padding:4px 10px;border-radius:99px}
+.err{color:var(--firm);font:14px system-ui,sans-serif}
+.empty{color:var(--mute);text-align:center;padding:30px 0;font-style:italic}
+</style>
+</head>
+<body>
+<main>
+<h1>The Unsaid Translator</h1>
+<p class="sub">Say it messy. Send it right.</p>
+<nav>
+ <button id="t-write" class="on">Translate</button>
+ <button id="t-sleep">Sleeping <span id="bdg"></span></button>
+ <button id="t-voice">My voice</button>
+ <button id="t-set">⚙ Settings</button>
+</nav>
+
+<section id="v-write">
+ <textarea id="inp" placeholder="e.g. I’m annoyed they cancelled again but I don’t want to sound petty"></textarea>
+ <div class="row">
+  <button class="btn pri" id="go">Translate it</button>
+  <button class="btn" id="mic" hidden>🎤 Speak</button>
+  <span class="hint" id="status"></span>
+ </div>
+ <div id="out"></div>
+</section>
+
+<section id="v-sleep" hidden><div id="sleeplist"></div></section>
+
+<section id="v-voice" hidden>
+ <p>The more of your real writing it sees, the more the rewrites sound like you. Paste a few messages you’ve sent and liked. Anything you copy or save from a rewrite is learned automatically.</p>
+ <textarea id="samples" placeholder="Paste a few of your own messages here, separated by blank lines…"></textarea>
+ <div class="row"><button class="btn pri" id="addS">Add to my voice</button><button class="btn" id="resetV">Reset voice</button></div>
+ <div class="stats" id="stats"></div>
+ <p class="hint">Voice data stays in this browser only.</p>
+</section>
+<section id="v-set" hidden>
+ <p><b>Where should the rewrites come from?</b></p>
+ <select id="prov" class="btn"><option value="gemini">Firebase AI Logic (Gemini, free tier)</option><option value="claude">My own Claude API key</option></select>
+ <div id="gbox" class="note">Uses the Gemini setup inside this file. Paste your <code>firebaseConfig</code> into the module script at the bottom of the file, then redeploy.</div>
+ <div id="kbox" hidden>
+  <p class="note">Your key is saved only in this browser and sent only to Anthropic. Only use this on your own device, never on a shared computer, and never share the key.</p>
+  <input id="akey" type="password" placeholder="sk-ant-…" autocomplete="off" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font:15px system-ui,sans-serif">
+  <div class="row"><button class="btn pri" id="saveK">Save key</button><button class="btn" id="clrK">Remove key</button><span class="hint" id="kst"></span></div>
+ </div>
+</section>
+</main>
+
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+var store={get:function(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+var voice=store.get('ut_voice',[]);   // array of text samples
+var sleeping=store.get('ut_sleep',[]);
+var current=null, mem={voice:voice,sleeping:sleeping};
+
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+
+/* ---------- tabs ---------- */
+function tab(n){['write','sleep','voice','set'].forEach(function(t){$('v-'+t).hidden=t!==n;$('t-'+t).classList.toggle('on',t===n)});if(n==='sleep')renderSleep();if(n==='voice')renderStats()}
+['write','sleep','voice','set'].forEach(function(t){$('t-'+t).onclick=function(){tab(t)}});
+
+/* ---------- voice profile ---------- */
+function analyse(){
+ var text=voice.join('\n\n');if(!text.trim())return null;
+ var sents=text.split(/[.!?]+\s|\n+/).filter(function(s){return s.trim()});
+ var words=text.toLowerCase().match(/[a-z’']+/g)||[];
+ var avg=words.length/Math.max(1,sents.length);
+ var ex=(text.match(/!/g)||[]).length;
+ var stop='the a an and or but to of in on at for with is are was were be i you it that this my me we they he she as so not do did have has had will would can could just if then than from by your our their there what when how about up out no yes'.split(' ');
+ var cnt={};words.forEach(function(w){if(w.length>3&&stop.indexOf(w)<0)cnt[w]=(cnt[w]||0)+1});
+ var fav=Object.keys(cnt).filter(function(w){return cnt[w]>1}).sort(function(a,b){return cnt[b]-cnt[a]}).slice(0,6);
+ var openers=['honestly','look','so','hey','thanks','quick','sorry','just'].filter(function(o){return new RegExp('(^|\\n|\\. )'+o+'\\b','i').test(text)});
+ return {avg:Math.round(avg),ex:ex,perMsg:(ex/Math.max(1,voice.length)).toFixed(1),fav:fav,openers:openers,n:voice.length,emoji:/\p{Extended_Pictographic}/u.test(text)};
+}
+function voiceBrief(){
+ var a=analyse();if(!a)return 'No voice samples yet. Write plainly, warmly and briefly, like a thoughtful person, not a corporate template.';
+ var s='Measured style: average sentence ~'+a.avg+' words; '+(a.ex?'uses exclamation marks (~'+a.perMsg+' per message)':'never uses exclamation marks')+'; '+(a.emoji?'uses emoji sometimes':'no emoji')+'.';
+ if(a.fav.length)s+=' Favourite words: '+a.fav.join(', ')+'.';
+ if(a.openers.length)s+=' Habitual openers: '+a.openers.join(', ')+'.';
+ s+='\nRecent samples of how they really write (imitate rhythm, vocabulary, punctuation, never copy content):\n'+voice.slice(-8).map(function(v){return '- '+v.slice(0,300)}).join('\n');
+ return s;
+}
+function renderStats(){
+ var a=analyse(),el=$('stats');
+ if(!a){el.innerHTML='<span class="chip">No samples yet</span>';return}
+ var c=['<span class="chip">'+a.n+' sample'+(a.n>1?'s':'')+'</span>','<span class="chip">~'+a.avg+' words per sentence</span>','<span class="chip">'+(a.ex?'uses “!”':'no exclamation marks')+'</span>'];
+ a.fav.forEach(function(w){c.push('<span class="chip">“'+esc(w)+'”</span>')});
+ el.innerHTML=c.join('');
+}
+function learn(t){if(!t||!t.trim())return;voice.push(t.trim());if(voice.length>40)voice.shift();store.set('ut_voice',voice)}
+$('addS').onclick=function(){var v=$('samples').value.trim();if(!v)return;v.split(/\n\s*\n/).forEach(learn);$('samples').value='';renderStats()};
+$('resetV').onclick=function(){voice.length=0;store.set('ut_voice',voice);renderStats()};
+
+/* ---------- providers ---------- */
+var prov=store.get('ut_prov','gemini'),akey=store.get('ut_key','');
+function showK(){$('kbox').hidden=prov!=='claude';$('gbox').hidden=prov!=='gemini'}
+$('prov').value=prov;showK();$('akey').value=akey;
+$('prov').onchange=function(){prov=this.value;store.set('ut_prov',prov);showK()};
+$('saveK').onclick=function(){akey=$('akey').value.trim();store.set('ut_key',akey);$('kst').textContent=akey?'Saved ✓':'Empty'};
+$('clrK').onclick=function(){akey='';$('akey').value='';store.set('ut_key','');$('kst').textContent='Removed'};
+function parseJ(t){return JSON.parse(String(t).replace(/```json|```/g,'').trim())}
+async function ask(prompt){
+ if(prov==='claude'){
+  if(!akey)throw new Error('Add your Anthropic API key in Settings first.');
+  var res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':akey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-5-5',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
+  if(!res.ok)throw new Error(res.status===401?'That API key was rejected. Check it in Settings.':'Claude API error ('+res.status+').');
+  var d=await res.json();return parseJ(d.content.map(function(b){return b.text||''}).join(''));
+ }
+ if(!window.askGemini)throw new Error('Firebase isn’t set up yet. Paste your firebaseConfig into the module script at the bottom of the file.');
+ return parseJ(await window.askGemini(prompt));
+}
+
+/* ---------- translate ---------- */
+var levels=[['soft','Soft','var(--soft)'],['clear','Clear','var(--clear)'],['firm','Firm','var(--firm)']];
+$('go').onclick=async function(){
+ var raw=$('inp').value.trim();if(!raw)return;
+ var st=$('status'),btn=$('go');st.textContent='';$('out').innerHTML='';
+ btn.disabled=true;st.textContent='Finding what you mean…';
+ var prompt='You are the Unsaid Translator. A person typed the messy, honest version of a message they want to send (or can’t figure out how to start). Turn it into what they meant to say, in THEIR voice.\n\nVOICE PROFILE:\n'+voiceBrief()+'\n\nMESSY INPUT:\n'+raw+'\n\nReturn ONLY JSON, no fences: {"hidden_ask":"the one concrete thing they actually want from the other person, as a short sentence, or empty string if there isn’t one","soft":"gentle version","clear":"direct, warm, balanced version","firm":"firm, unambiguous version with clear boundary","note":"one short sentence of advice, e.g. what to watch out for, or empty"}\nRules: each version is a ready-to-send message; the hidden ask (if any) goes in the FIRST line of every version; match the voice profile exactly (no exclamation marks if they never use them); no corporate filler like “I hope this finds you well”; no invented facts or names; keep versions short; do not add blame the person didn’t express.';
+ try{
+  var r=await ask(prompt);
+  current={raw:raw,r:r};render(r);st.textContent='';
+ }catch(e){st.innerHTML='<span class="err">'+esc((e&&e.message)||'Something went wrong. Try again in a moment.')+'</span>'}
+ btn.disabled=false;
+};
+function render(r){
+ var h='';
+ if(r.hidden_ask)h+='<div class="ask"><b>The hidden ask</b>'+esc(r.hidden_ask)+'</div>';
+ h+='<div class="grid">';
+ levels.forEach(function(l){h+='<div class="opt" style="border-top-color:'+l[2]+'"><h3 style="color:'+l[2]+'">'+l[1]+'</h3><p>'+esc(r[l[0]]||'')+'</p><div class="acts"><button data-a="copy" data-k="'+l[0]+'">Copy</button><button data-a="sleep" data-k="'+l[0]+'">😴 Sleep on it</button></div></div>'});
+ h+='</div>';
+ if(r.note)h+='<p class="note">'+esc(r.note)+'</p>';
+ $('out').innerHTML=h;
+}
+$('out').onclick=function(e){
+ var b=e.target.closest('button');if(!b||!current)return;
+ var txt=current.r[b.dataset.k]||'';
+ if(b.dataset.a==='copy'){
+  (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).catch(function(){}).then(function(){learn(txt);b.textContent='Copied ✓'});
+ }else{
+  var d=new Date(),m=new Date(d);m.setDate(m.getDate()+(d.getHours()>=7?1:0));m.setHours(8,0,0,0);
+  sleeping.unshift({id:Date.now(),raw:current.raw,text:txt,level:b.dataset.k,ready:m.getTime(),made:Date.now()});
+  store.set('ut_sleep',sleeping);b.textContent='Saved till morning ✓';updBadge();
+ }
+};
+
+/* ---------- sleep on it ---------- */
+function fmt(t){return new Date(t).toLocaleString([],{weekday:'short',hour:'numeric',minute:'2-digit'})}
+function updBadge(){var n=sleeping.filter(function(s){return s.ready<=Date.now()}).length;$('bdg').innerHTML=n?'<span class="badge">'+n+'</span>':''}
+function renderSleep(){
+ var el=$('sleeplist');
+ if(!sleeping.length){el.innerHTML='<div class="empty">Nothing sleeping. Hit “Sleep on it” under any rewrite. Most angry messages quietly die here, which is a good thing.</div>';return}
+ el.innerHTML=sleeping.map(function(s){
+  var ready=s.ready<=Date.now();
+  return '<div class="item'+(ready?' ready':'')+'" data-id="'+s.id+'"><div class="when">'+(ready?'Woke up '+fmt(s.ready):'Wakes '+fmt(s.ready))+' · '+s.level+'</div>'+
+  (ready?'<div class="q">Still want to send this?</div><p>'+esc(s.text)+'</p><div class="row"><button class="btn pri" data-a="send">Yes, copy it</button><button class="btn" data-a="drop">Let it go</button></div>':
+  '<p style="color:var(--mute)">Hidden until morning. Future you will decide.</p><div class="row"><button class="btn" data-a="peek">Wake now (demo)</button><button class="btn" data-a="drop">Let it go</button></div>')+'</div>';
+ }).join('');
+}
+$('sleeplist').onclick=function(e){
+ var b=e.target.closest('button');if(!b)return;
+ var id=+b.closest('.item').dataset.id,i=sleeping.findIndex(function(s){return s.id===id}),s=sleeping[i];if(!s)return;
+ if(b.dataset.a==='drop')sleeping.splice(i,1);
+ else if(b.dataset.a==='peek')s.ready=Date.now();
+ else if(b.dataset.a==='send'){try{navigator.clipboard.writeText(s.text)}catch(x){}learn(s.text);sleeping.splice(i,1)}
+ store.set('ut_sleep',sleeping);updBadge();renderSleep();
+};
+
+/* ---------- speech ---------- */
+var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(SR){var mic=$('mic');mic.hidden=false;var rec=null;mic.onclick=function(){
+ if(rec){rec.stop();return}
+ rec=new SR();rec.interimResults=false;rec.continuous=true;
+ rec.onresult=function(ev){var t='';for(var i=ev.resultIndex;i<ev.results.length;i++)t+=ev.results[i][0].transcript;$('inp').value=($('inp').value+' '+t).trim()};
+ rec.onend=function(){rec=null;mic.textContent='🎤 Speak'};
+ try{rec.start();mic.textContent='■ Stop'}catch(e){rec=null}
+}}
+
+updBadge();
+})();
+</script>
+<script type="module">
+// ===== Option B: Firebase AI Logic (Gemini). Paste your config from Firebase console > Project settings > Your apps =====
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBxU7-EWEwEhWoLM8rWPnMhvTh-EtrAp7M",
+  authDomain: "the-unsaid-translator.firebaseapp.com",
+  projectId: "the-unsaid-translator",
+  storageBucket: "the-unsaid-translator.firebasestorage.app",
+  messagingSenderId: "387460490206",
+  appId: "1:387460490206:web:ec26fd8cd111dce814334f",
+  measurementId: "G-7QBTCL4V7C"
+};
+if (FIREBASE_CONFIG.apiKey !== "PASTE_ME") {
+  try {
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js");
+    const { getAI, getGenerativeModel, GoogleAIBackend } = await import("https://www.gstatic.com/firebasejs/12.0.0/firebase-ai.js");
+    const ai = getAI(initializeApp(FIREBASE_CONFIG), { backend: new GoogleAIBackend() });
+    // Check the Firebase docs for the current free model name if this one stops working
+    const model = getGenerativeModel(ai, { model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json", maxOutputTokens: 800 } });
+    window.askGemini = async (p) => (await model.generateContent(p)).response.text();
+  } catch (e) { console.error("Firebase setup failed", e); }
+}
+</script>
+</body>
+</html>
