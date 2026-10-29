@@ -132,7 +132,7 @@ function voiceBrief(){
  var s='Measured style: average sentence ~'+a.avg+' words; '+(a.ex?'uses exclamation marks (~'+a.perMsg+' per message)':'never uses exclamation marks')+'; '+(a.emoji?'uses emoji sometimes':'no emoji')+'.';
  if(a.fav.length)s+=' Favourite words: '+a.fav.join(', ')+'.';
  if(a.openers.length)s+=' Habitual openers: '+a.openers.join(', ')+'.';
- s+='\nRecent samples of how they really write (imitate rhythm, vocabulary, punctuation, never copy content):\n'+voice.slice(-8).map(function(v){return '- '+v.slice(0,300)}).join('\n');
+ s+='\nRecent samples of how they really write (imitate rhythm, vocabulary, punctuation, never copy content):\n'+voice.slice(-4).map(function(v){return '- '+v.slice(0,200)}).join('\n');
  return s;
 }
 function renderStats(){
@@ -166,16 +166,25 @@ async function ask(prompt){
  }
  if(prov==='aistudio'){
   if(!gk)throw new Error('Open Settings and paste your free Google AI Studio key first.');
-  var models=['gemini-flash-latest','gemini-2.5-flash','gemini-flash-lite-latest'],g=null,lastS=0;
-  for(var mi=0;mi<models.length;mi++){
-   for(var vi=0;vi<2;vi++){
-    var gc={responseMimeType:'application/json',maxOutputTokens:2000};if(vi===0)gc.thinkingConfig={thinkingBudget:0};
-    g=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+models[mi]+':generateContent',{method:'POST',headers:{'content-type':'application/json','x-goog-api-key':gk},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:gc})});
-    lastS=g.status;if(g.ok||g.status!==400)break;
+  var models=['gemini-flash-lite-latest','gemini-flash-latest','gemini-2.5-flash'],g=null,lastS=0,noThink=false,st=$('status');
+  outer:for(var mi=0;mi<models.length;mi++){
+   for(var at=0;at<2;at++){
+    var ctl=new AbortController(),tm=setTimeout(function(){ctl.abort()},15000);
+    try{
+     var gc={responseMimeType:'application/json',maxOutputTokens:700};if(!noThink)gc.thinkingConfig={thinkingBudget:0};
+     g=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+models[mi]+':generateContent',{method:'POST',signal:ctl.signal,headers:{'content-type':'application/json','x-goog-api-key':gk},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:gc})});
+     lastS=g.status;
+    }catch(e){g=null;lastS=0}
+    clearTimeout(tm);
+    if(g&&g.ok)break outer;
+    if(lastS===401||lastS===403||lastS===429)break outer;
+    if(lastS===400)noThink=true;
+    if(lastS===0)break;
+    st.textContent='Google is busy, trying again…';
+    await new Promise(function(r){setTimeout(r,700)});
    }
-   if(g.ok||(g.status!==404&&g.status!==400))break;
   }
-  if(!g.ok)throw new Error(lastS===429?'Free limit reached for now. Wait a minute and try again.':(lastS===401||lastS===403)?'Google rejected the key. Check it in Settings.':'Gemini error ('+lastS+').');
+  if(!g||!g.ok)throw new Error(lastS===0?'No answer from Google in time. Check your internet, then try again.':lastS===429?'Free limit reached for now. Wait a minute and try again.':(lastS===401||lastS===403)?'Google rejected the key. Check it in Settings.':lastS>=500?'Google is busy right now. Try again in a minute.':'Gemini error ('+lastS+').');
   var gd=await g.json();return parseJ(gd.candidates[0].content.parts.map(function(p){return p.text||''}).join(''));
  }
  if(!window.askGemini)throw new Error('Firebase isn’t set up yet. Paste your firebaseConfig into the module script at the bottom of the file.');
@@ -188,7 +197,7 @@ $('go').onclick=async function(){
  var raw=$('inp').value.trim();if(!raw)return;
  var st=$('status'),btn=$('go');st.textContent='';$('out').innerHTML='';
  btn.disabled=true;st.textContent='Finding what you mean…';
- var prompt='You are the Unsaid Translator. A person typed the messy, honest version of a message they want to send (or can’t figure out how to start). Turn it into what they meant to say, in THEIR voice.\n\nVOICE PROFILE:\n'+voiceBrief()+'\n\nMESSY INPUT:\n'+raw+'\n\nReturn ONLY JSON, no fences: {"hidden_ask":"the one concrete thing they actually want from the other person, as a short sentence, or empty string if there isn’t one","soft":"gentle version","clear":"direct, warm, balanced version","firm":"firm, unambiguous version with clear boundary","note":"one short sentence of advice, e.g. what to watch out for, or empty"}\nRules: each version is a ready-to-send message; the hidden ask (if any) goes in the FIRST line of every version; match the voice profile exactly (no exclamation marks if they never use them); no corporate filler like “I hope this finds you well”; no invented facts or names; keep versions short; do not add blame the person didn’t express.';
+ var prompt='You are the Unsaid Translator. A person typed the messy, honest version of a message they want to send (or can’t figure out how to start). Turn it into what they meant to say, in THEIR voice.\n\nVOICE PROFILE:\n'+voiceBrief()+'\n\nMESSY INPUT:\n'+raw+'\n\nReturn ONLY JSON, no fences: {"hidden_ask":"the one concrete thing they actually want from the other person, as a short sentence, or empty string if there isn’t one","soft":"gentle version","clear":"direct, warm, balanced version","firm":"firm, unambiguous version with clear boundary","note":"one short sentence of advice, e.g. what to watch out for, or empty"}\nRules: each version is a ready-to-send message; the hidden ask (if any) goes in the FIRST line of every version; match the voice profile exactly (no exclamation marks if they never use them); no corporate filler like “I hope this finds you well”; no invented facts or names; keep each version under 40 words; do not add blame the person didn’t express.';
  try{
   var r=await ask(prompt);
   current={raw:raw,r:r};render(r);st.textContent='';
